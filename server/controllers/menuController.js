@@ -27,16 +27,16 @@ export const createMenuItem = async (req, res) => {
     let { name, description, price, image, category, addons } = req.body;
     if (req.file) {
       image = `/uploads/${req.file.filename}`;
-    }
-    if (!image) {
-      image = null;
-    }
-    if (image) {
+      // Only check extension for uploaded files
       const allowed = ['.png', '.jpg', '.jpeg'];
       const ext = image.split('.').pop().toLowerCase();
       if (!allowed.includes(`.${ext}`) && image !== "") {
-        return res.status(400).json({ error: 'Only .png, .jpg and .jpeg formats allowed for image.' });
+        return res.status(400).json({ error: 'Only .png, .jpg and .jpeg formats allowed for uploaded image.' });
       }
+    }
+    // If not file upload, allow any direct URL (no extension check)
+    if (!image) {
+      image = null;
     }
     // Ensure addons is always an array of ObjectIds or empty array
     if (!addons) {
@@ -72,7 +72,20 @@ export const createMenuItem = async (req, res) => {
 export const updateMenuItem = async (req, res) => {
   try {
     const { id } = req.params;
-    const menuItem = await Menu.findByIdAndUpdate(id, req.body, { new: true });
+    const update = { ...req.body };
+    if (req.file) {
+      update.image = `/uploads/${req.file.filename}`;
+      // Only check extension for uploaded files
+      const allowed = ['.png', '.jpg', '.jpeg'];
+      const ext = update.image.split('.').pop().toLowerCase();
+      if (!allowed.includes(`.${ext}`) && update.image !== "") {
+        return res.status(400).json({ error: 'Only .png, .jpg and .jpeg formats allowed for uploaded image.' });
+      }
+    } else if (req.body.image && typeof req.body.image === 'string') {
+      // Accept any direct URL (no extension check)
+      update.image = req.body.image;
+    }
+    const menuItem = await Menu.findByIdAndUpdate(id, update, { new: true });
     const io = req.app.get('io');
     if (io) {
       io.emit('menuUpdated');
