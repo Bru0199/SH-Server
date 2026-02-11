@@ -13,6 +13,12 @@ export const getCategories = async (req, res) => {
 export const createCategory = async (req, res) => {
   try {
     const { name, description } = req.body;
+    let image = null;
+    if (req.file) {
+      image = `/uploads/${req.file.filename}`;
+    } else if (req.body.image && typeof req.body.image === 'string') {
+      image = req.body.image;
+    }
     if (!name) {
       return res.status(400).json({ error: 'Category name is required.' });
     }
@@ -20,7 +26,7 @@ export const createCategory = async (req, res) => {
     if (exists) {
       return res.status(400).json({ error: 'Category already exists.' });
     }
-    const category = await Category.create({ name, description });
+    const category = await Category.create({ name, description, image });
     const io = req.app.get('io');
     if (io) {
       io.emit('categoriesUpdated');
@@ -35,7 +41,13 @@ export const createCategory = async (req, res) => {
 export const updateCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    const category = await Category.findByIdAndUpdate(id, req.body, { new: true });
+    const update = { ...req.body };
+    if (req.file) {
+      update.image = `/uploads/${req.file.filename}`;
+    } else if (req.body.image && typeof req.body.image === 'string') {
+      update.image = req.body.image;
+    }
+    const category = await Category.findByIdAndUpdate(id, update, { new: true });
     const io = req.app.get('io');
     if (io) {
       io.emit('categoriesUpdated');
