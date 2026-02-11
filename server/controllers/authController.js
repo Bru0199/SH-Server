@@ -23,7 +23,9 @@ export const register = async (req, res) => {
     try {
       await sendOtpEmail(email, otp, 'register');
     } catch (emailErr) {
-      return res.status(500).json({ error: 'Failed to send OTP email.' });
+      console.error('Error sending OTP email:', emailErr.message||emailErr);
+      
+      return res.status(500).json({ error: 'Failed to send OTP email.',...(process.env.NODE_ENV!=='production')&&{detail:emailErr.message||emailErr} });
     }
     res.status(201).json({ message: 'User registered. OTP sent to email.' });
   } catch (err) {
@@ -35,8 +37,16 @@ export const verifyOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
     const user = await User.findOne({ email });
-    if (!user || !user.otp || user.otp.code !== otp || user.otp.expiresAt < Date.now()) {
+    if (!user || !user.otp) {
       return res.status(400).json({ error: 'Invalid or expired OTP' });
+    }
+    // If OTP expired, delete user record
+    if (user.otp.expiresAt < Date.now()) {
+      await User.deleteOne({ email });
+      return res.status(400).json({ error: 'OTP expired. Registration deleted. Please register again.' });
+    }
+    if (user.otp.code !== otp) {
+      return res.status(400).json({ error: 'Invalid OTP' });
     }
     user.isVerified = true;
     user.otp = {};
@@ -81,7 +91,8 @@ export const forgotPassword = async (req, res) => {
     try {
       await sendOtpEmail(email, otp, 'reset');
     } catch (emailErr) {
-      return res.status(500).json({ error: 'Failed to send OTP email.' });
+      console.error('Error sending OTP email:', emailErr.message||emailErr);
+      return res.status(500).json({ error: 'Failed to send OTP email.',...(process.env.NODE_ENV!=='production')&&{detail:emailErr.message||emailErr} });
     }
     res.json({ message: 'OTP sent to email.' });
   } catch (err) {
