@@ -1,3 +1,22 @@
+// Delete user by admin
+export const deleteUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+    await user.deleteOne();
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('usersUpdated');
+      io.emit('dataUpdated', { type: 'users' });
+    }
+    res.json({ message: 'User deleted successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 export const createUser = async (req, res) => {
   try {
     const { username, email, phone, password, role, status } = req.body;

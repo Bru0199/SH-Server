@@ -8,10 +8,29 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+
+
+function getTransporter(){
+  const service = process.env.EMAIL_SERVICE;
+  const user = process.env.EMAIL_USER;
+  const pass = process.env.EMAIL_PASS;  
+  if (!service || !user || !pass) {
+    throw new Error('Email service configuration is missing');
+  }
+  return nodemailer.createTransport({
+    service,
+    auth: {
+      user,
+      pass,
+    },
+  });
+}
+
 async function sendOtpEmail(to, otp, type = 'register') {
   if (process.env.NODE_ENV === 'test') {
     return Promise.resolve();
   }
+  const transporter = getTransporter();
   let subject, html;
   const logoUrl = `${process.env.CLIENT_URL || ''}/assets/email/logo.png`;
   if (type === 'register') {
