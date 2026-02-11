@@ -63,8 +63,22 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found', message: 'Route not found' });
+
+// Serve frontend index.html for all non-API, non-static routes (SPA support)
+import fs from 'fs';
+const frontendBuildPath = path.join(__dirname, '../client/dist'); // Adjust if your build folder is elsewhere
+app.use(express.static(frontendBuildPath));
+app.get('*', (req, res, next) => {
+  if (
+    req.method === 'GET' &&
+    !req.path.startsWith('/api') &&
+    !req.path.startsWith('/uploads') &&
+    fs.existsSync(path.join(frontendBuildPath, 'index.html'))
+  ) {
+    res.sendFile(path.join(frontendBuildPath, 'index.html'));
+  } else {
+    next();
+  }
 });
 
 app.use((err, req, res, next) => {
