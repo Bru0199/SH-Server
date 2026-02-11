@@ -49,7 +49,10 @@ export const verifyOtp = async (req, res) => {
       return res.status(400).json({ error: 'Invalid OTP' });
     }
     user.isVerified = true;
-    user.otp = {};
+    // Only clear OTP for registration, not for forgot password
+    if (req.body.type !== 'reset') {
+      user.otp = {};
+    }
     await user.save();
     res.json({ message: 'OTP verified. You can now log in.' });
   } catch (err) {
