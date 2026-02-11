@@ -1,19 +1,18 @@
+
 import nodemailer from 'nodemailer';
+let brevo = null;
+if (process.env.NODE_ENV === 'production') {
+  brevo = await import('@getbrevo/brevo');
+}
 
-const transporter = nodemailer.createTransport({
-  service: process.env.EMAIL_SERVICE,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
-
-
-
-function getTransporter(){
+function getTransporter() {
+  if (process.env.NODE_ENV === 'production') {
+    // Brevo will be used directly in sendOtpEmail
+    return null;
+  }
   const service = process.env.EMAIL_SERVICE;
   const user = process.env.EMAIL_USER;
-  const pass = process.env.EMAIL_PASS;  
+  const pass = process.env.EMAIL_PASS;
   if (!service || !user || !pass) {
     throw new Error('Email service configuration is missing');
   }
@@ -26,11 +25,11 @@ function getTransporter(){
   });
 }
 
+
 async function sendOtpEmail(to, otp, type = 'register') {
   if (process.env.NODE_ENV === 'test') {
     return Promise.resolve();
   }
-  const transporter = getTransporter();
   let subject, html;
   const logoUrl = `${process.env.CLIENT_URL || ''}/assets/email/logo.png`;
   if (type === 'register') {
@@ -56,13 +55,33 @@ async function sendOtpEmail(to, otp, type = 'register') {
       </div>
     `;
   }
-  const mailOptions = {
-    from: process.env.EMAIL_USER || 'no-reply@stillhungry.com',
-    to,
-    subject,
-    html,
-  };
-  return transporter.sendMail(mailOptions);
+
+  if (process.env.NODE_ENV === 'production') {
+    // Use Brevo (Sendinblue)
+    if (!process.env.BREVO_API_KEY) {
+      throw new Error('Brevo API key is missing');
+    }
+    const BrevoApi = brevo.default;
+    const apiInstance = new BrevoApi.TransactionalEmailsApi();
+    apiInstance.setApiKey(BrevoApi.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
+    const sendSmtpEmail = {
+      to: [{ email: to }],
+      sender: { email: process.env.EMAIL_USER || 'no-reply@stillhungry.com', name: 'StillHungry' },
+      subject,
+      htmlContent: html,
+    };
+    return apiInstance.sendTransacEmail(sendSmtpEmail);
+  } else {
+    // Use Nodemailer for dev/test
+    const transporter = getTransporter();
+    const mailOptions = {
+      from: process.env.EMAIL_USER || 'no-reply@stillhungry.com',
+      to,
+      subject,
+      html,
+    };
+    return transporter.sendMail(mailOptions);
+  }
 }
 
 export { sendOtpEmail };
