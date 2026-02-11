@@ -49,7 +49,8 @@ export const verifyOtp = async (req, res) => {
       return res.status(400).json({ error: 'Invalid OTP' });
     }
     user.isVerified = true;
-    user.otp = {};
+    // Mark OTP as verified
+    user.otp.verified = true;
     await user.save();
     res.json({ message: 'OTP verified. You can now log in.' });
   } catch (err) {
@@ -102,9 +103,9 @@ export const forgotPassword = async (req, res) => {
 
 export const resetPassword = async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body;
+    const { email, newPassword } = req.body;
     const user = await User.findOne({ email });
-    if (!user || !user.otp || user.otp.code !== otp || user.otp.expiresAt < Date.now()) {
+    if (!user || !user.otp || !user.otp.verified || user.otp.expiresAt < Date.now()) {
       return res.status(400).json({ error: 'Invalid or expired OTP' });
     }
     user.password = newPassword;
